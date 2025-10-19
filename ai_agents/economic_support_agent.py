@@ -1,4 +1,4 @@
-# 2_ai_agents/economic_support_agent.py
+# ai_agents/economic_support_agent.py
 from .agent_framework import BaseAgent, AgentState, PlanAndSolveFramework
 from typing import Dict, List, Any
 from datetime import datetime

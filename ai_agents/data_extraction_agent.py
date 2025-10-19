@@ -1,4 +1,4 @@
-# 2_ai_agents/data_extraction_agent.py
+# ai_agents/data_extraction_agent.py
 from .agent_framework import BaseAgent, AgentState, ReActFramework
 from typing import Dict, List, Any
 import json

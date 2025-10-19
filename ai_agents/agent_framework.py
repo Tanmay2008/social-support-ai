@@ -1,249 +1,236 @@
-# 2_ai_agents/agent_framework.py
-from langgraph.graph import StateGraph, END
-from typing import TypedDict, List, Optional
-from agno.agent import Agent
-from agno.models.ollama import Ollama
-import json
+# ai_agents/agent_framework.py
+from typing import TypedDict, List, Optional, Dict, Any
 from datetime import datetime
+import logging
+from abc import ABC, abstractmethod
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class AgentState(TypedDict):
-    application_data: dict
-    extracted_info: dict
-    validation_results: dict
+    application_id: str
+    application_data: Dict[str, Any]
+    extracted_info: Dict[str, Any]
+    validation_results: Dict[str, Any]
     eligibility_score: float
     decision_recommendation: str
     economic_support_recommendations: List[str]
     errors: List[str]
     processing_log: List[str]
+    current_step: str
+    metadata: Dict[str, Any]
 
-class BaseAgent:
-    def __init__(self, name: str, model: str = "llama2"):
-        self.name = name
-        self.model = Ollama(model=model)
-        self.agent = Agent(
-            name=name,
-            model=self.model,
-            markdown=True
-        )
+class BaseAgent(ABC):
+    """Base class for all AI agents with common functionality"""
     
-    def log_action(self, state: AgentState, action: str):
+    def __init__(self, name: str, description: str):
+        self.name = name
+        self.description = description
+        self.logger = logging.getLogger(f"agent.{name}")
+    
+    def log_action(self, state: AgentState, action: str, metadata: Dict = None):
         """Log agent actions for observability"""
         timestamp = datetime.now().isoformat()
-        log_entry = f"{timestamp} - {self.name}: {action}"
-        state['processing_log'].append(log_entry)
-
-class DataExtractionAgent(BaseAgent):
-    def __init__(self):
-        super().__init__("Data Extraction Agent")
-    
-    def process(self, state: AgentState) -> AgentState:
-        """Extract and structure data from all input sources using ReAct framework"""
-        self.log_action(state, "Starting data extraction")
-        
-        try:
-            # Thought: I need to extract data from all submitted documents
-            documents = state['application_data'].get('documents', {})
-            extracted_data = {}
-            
-            # Reason: Process each document type with appropriate methods
-            for doc_type, doc_path in documents.items():
-                if doc_type == 'application_form':
-                    extracted_data[doc_type] = self.process_application_form(doc_path)
-                elif doc_type == 'bank_statement':
-                    extracted_data[doc_type] = self.extract_financial_data(doc_path)
-                elif doc_type == 'emirates_id':
-                    extracted_data[doc_type] = self.extract_identity_data(doc_path)
-                elif doc_type == 'resume':
-                    extracted_data[doc_type] = self.extract_employment_data(doc_path)
-                elif doc_type == 'assets_file':
-                    extracted_data[doc_type] = self.extract_assets_data(doc_path)
-                elif doc_type == 'credit_report':
-                    extracted_data[doc_type] = self.extract_credit_data(doc_path)
-            
-            # Action: Store extracted data in state
-            state['extracted_info'] = extracted_data
-            self.log_action(state, f"Successfully extracted data from {len(documents)} documents")
-            
-        except Exception as e:
-            state['errors'].append(f"Data extraction error: {str(e)}")
-            self.log_action(state, f"Data extraction failed: {str(e)}")
-        
-        return state
-
-class DataValidationAgent(BaseAgent):
-    def __init__(self):
-        super().__init__("Data Validation Agent")
-    
-    def process(self, state: AgentState) -> AgentState:
-        """Validate data consistency across documents using Reflexion framework"""
-        self.log_action(state, "Starting data validation")
-        
-        try:
-            extracted_data = state['extracted_info']
-            validation_results = {}
-            
-            # Initial validation attempt
-            validation_results = self.perform_initial_validation(extracted_data)
-            
-            # Reflexion: Learn from validation results and improve
-            if not validation_results.get('overall_consistent', False):
-                validation_results = self.reflect_and_revalidate(extracted_data, validation_results)
-            
-            state['validation_results'] = validation_results
-            self.log_action(state, f"Validation completed with score: {validation_results.get('consistency_score', 0)}")
-            
-        except Exception as e:
-            state['errors'].append(f"Data validation error: {str(e)}")
-            self.log_action(state, f"Data validation failed: {str(e)}")
-        
-        return state
-    
-    def perform_initial_validation(self, data: Dict) -> Dict:
-        """Perform initial data validation"""
-        # Implementation for cross-document validation
-        return {
-            'address_consistency': self.validate_addresses(data),
-            'income_consistency': self.validate_income(data),
-            'identity_consistency': self.validate_identity(data),
-            'overall_consistent': True,  # Simplified for prototype
-            'consistency_score': 0.95
+        log_entry = {
+            'timestamp': timestamp,
+            'agent': self.name,
+            'action': action,
+            'metadata': metadata or {}
         }
-
-class EligibilityAssessmentAgent(BaseAgent):
-    def __init__(self):
-        super().__init__("Eligibility Assessment Agent")
+        state['processing_log'].append(log_entry)
+        self.logger.info(f"{action} - {metadata or ''}")
     
+    def handle_error(self, state: AgentState, error: Exception, context: str = ""):
+        """Handle errors consistently across all agents"""
+        error_msg = f"{self.name} error{': ' + context if context else ''}: {str(error)}"
+        state['errors'].append(error_msg)
+        self.log_action(state, "error_occurred", {
+            'error': str(error),
+            'context': context,
+            'type': type(error).__name__
+        })
+        self.logger.error(error_msg)
+    
+    @abstractmethod
     def process(self, state: AgentState) -> AgentState:
-        """Assess eligibility using ML models and rules"""
-        self.log_action(state, "Starting eligibility assessment")
-        
-        try:
-            extracted_data = state['extracted_info']
-            validation_results = state['validation_results']
-            
-            # Calculate eligibility score
-            eligibility_score = self.calculate_eligibility_score(extracted_data, validation_results)
-            
-            state['eligibility_score'] = eligibility_score
-            self.log_action(state, f"Eligibility score calculated: {eligibility_score}")
-            
-        except Exception as e:
-            state['errors'].append(f"Eligibility assessment error: {str(e)}")
-            self.log_action(state, f"Eligibility assessment failed: {str(e)}")
-        
-        return state
+        """Main processing method to be implemented by each agent"""
+        pass
     
-    def calculate_eligibility_score(self, data: Dict, validation: Dict) -> float:
-        """Calculate comprehensive eligibility score"""
-        # Implement scoring logic based on business rules
-        score = 0.0
-        
-        # Income-based scoring (40%)
-        income_score = self.assess_income_eligibility(data)
-        score += income_score * 0.4
-        
-        # Family situation scoring (30%)
-        family_score = self.assess_family_situation(data)
-        score += family_score * 0.3
-        
-        # Employment status scoring (20%)
-        employment_score = self.assess_employment_status(data)
-        score += employment_score * 0.2
-        
-        # Data consistency scoring (10%)
-        consistency_score = validation.get('consistency_score', 0)
-        score += consistency_score * 0.1
-        
-        return min(score, 1.0)
+    def validate_input(self, state: AgentState, required_fields: List[str]) -> bool:
+        """Validate that required fields are present in state"""
+        for field in required_fields:
+            if not state.get(field):
+                self.handle_error(
+                    state, 
+                    ValueError(f"Missing required field: {field}"),
+                    "input_validation"
+                )
+                return False
+        return True
+    
+    def update_metadata(self, state: AgentState, updates: Dict[str, Any]):
+        """Update agent-specific metadata in state"""
+        if 'agent_metadata' not in state['metadata']:
+            state['metadata']['agent_metadata'] = {}
+        state['metadata']['agent_metadata'][self.name] = updates
 
-class DecisionRecommendationAgent(BaseAgent):
-    def __init__(self):
-        super().__init__("Decision Recommendation Agent")
+class ReActFramework:
+    """Implementation of ReAct (Reasoning + Acting) framework"""
     
-    def process(self, state: AgentState) -> AgentState:
-        """Provide final decision recommendation using PaS (Plan-and-Solve)"""
-        self.log_action(state, "Starting decision recommendation")
+    @staticmethod
+    def reason(observation: str, context: Dict) -> str:
+        """Generate reasoning based on observation and context"""
+        # In production, this would use an LLM
+        reasoning_templates = {
+            'data_extraction': "I need to extract structured information from the {doc_type} document. Looking for key fields like {fields}.",
+            'validation': "I need to validate consistency between {documents}. Checking for mismatches in {fields}.",
+            'eligibility': "Based on the applicant's {criteria}, I need to calculate an eligibility score considering factors like {factors}."
+        }
         
-        try:
-            eligibility_score = state['eligibility_score']
-            extracted_data = state['extracted_info']
-            
-            # Plan: Determine the decision strategy
-            decision_plan = self.plan_decision_strategy(eligibility_score, extracted_data)
-            
-            # Solve: Execute the plan and generate recommendation
-            recommendation = self.execute_decision_plan(decision_plan, extracted_data)
-            
-            state['decision_recommendation'] = recommendation
-            self.log_action(state, f"Decision recommendation: {recommendation}")
-            
-        except Exception as e:
-            state['errors'].append(f"Decision recommendation error: {str(e)}")
-            self.log_action(state, f"Decision recommendation failed: {str(e)}")
+        doc_type = context.get('doc_type', 'unknown')
+        if 'extract' in observation.lower():
+            return reasoning_templates['data_extraction'].format(
+                doc_type=doc_type,
+                fields=context.get('fields', 'relevant information')
+            )
+        elif 'valid' in observation.lower():
+            return reasoning_templates['validation'].format(
+                documents=context.get('documents', 'submitted documents'),
+                fields=context.get('fields', 'key data points')
+            )
         
-        return state
+        return f"Reasoning about: {observation}"
     
-    def plan_decision_strategy(self, score: float, data: Dict) -> Dict:
-        """Plan the decision strategy based on eligibility score"""
-        if score >= 0.8:
-            return {'action': 'approve', 'confidence': 'high', 'type': 'full_support'}
-        elif score >= 0.6:
-            return {'action': 'approve', 'confidence': 'medium', 'type': 'partial_support'}
-        elif score >= 0.4:
-            return {'action': 'soft_decline', 'confidence': 'medium', 'type': 'conditional'}
-        else:
-            return {'action': 'decline', 'confidence': 'high', 'type': 'ineligible'}
+    @staticmethod
+    def act(reasoning: str, available_actions: List[str]) -> str:
+        """Choose action based on reasoning"""
+        reasoning_lower = reasoning.lower()
+        
+        if any(word in reasoning_lower for word in ['extract', 'parse', 'read']):
+            return 'extract_data'
+        elif any(word in reasoning_lower for word in ['valid', 'check', 'verify']):
+            return 'validate_data'
+        elif any(word in reasoning_lower for word in ['score', 'assess', 'evaluate']):
+            return 'calculate_score'
+        elif any(word in reasoning_lower for word in ['decide', 'recommend']):
+            return 'make_recommendation'
+        
+        return available_actions[0] if available_actions else 'unknown_action'
 
-class EconomicSupportAgent(BaseAgent):
-    def __init__(self):
-        super().__init__("Economic Support Agent")
+class ReflexionFramework:
+    """Implementation of Reflexion framework for self-reflection and improvement"""
     
-    def process(self, state: AgentState) -> AgentState:
-        """Recommend economic enablement support options"""
-        self.log_action(state, "Starting economic support recommendations")
+    @staticmethod
+    def reflect(previous_action: str, result: Dict, context: Dict) -> Dict:
+        """Reflect on previous action and result to improve future actions"""
+        reflection = {
+            'previous_action': previous_action,
+            'success': result.get('success', False),
+            'issues_identified': [],
+            'improvements_suggested': [],
+            'next_action_adjustment': None
+        }
         
-        try:
-            extracted_data = state['extracted_info']
-            eligibility_score = state['eligibility_score']
-            
-            recommendations = self.generate_support_recommendations(extracted_data, eligibility_score)
-            
-            state['economic_support_recommendations'] = recommendations
-            self.log_action(state, f"Generated {len(recommendations)} economic support recommendations")
-            
-        except Exception as e:
-            state['errors'].append(f"Economic support recommendation error: {str(e)}")
-            self.log_action(state, f"Economic support recommendation failed: {str(e)}")
+        # Analyze common issues
+        if not result.get('success', False):
+            error = result.get('error', '')
+            if 'inconsistent' in error.lower():
+                reflection['issues_identified'].append('Data inconsistency detected')
+                reflection['improvements_suggested'].append('Apply stricter validation rules')
+                reflection['next_action_adjustment'] = 'revalidate_with_stricter_rules'
+            elif 'missing' in error.lower():
+                reflection['issues_identified'].append('Missing required data')
+                reflection['improvements_suggested'].append('Request additional information')
+                reflection['next_action_adjustment'] = 'request_missing_data'
+            elif 'format' in error.lower():
+                reflection['issues_identified'].append('Data format issue')
+                reflection['improvements_suggested'].append('Improve data parsing logic')
+                reflection['next_action_adjustment'] = 'reparse_with_alternative_method'
         
-        return state
+        return reflection
+
+class PlanAndSolveFramework:
+    """Implementation of Plan-and-Solve reasoning framework"""
     
-    def generate_support_recommendations(self, data: Dict, score: float) -> List[str]:
-        """Generate personalized economic support recommendations"""
-        recommendations = []
+    @staticmethod
+    def plan(goal: str, constraints: List[str], available_data: Dict) -> Dict:
+        """Create a plan to achieve the goal"""
+        plan = {
+            'goal': goal,
+            'constraints': constraints,
+            'steps': [],
+            'estimated_difficulty': 'medium',
+            'risk_factors': []
+        }
         
-        # Job matching recommendations
-        if data.get('employment_status') in ['Unemployed', 'Underemployed']:
-            recommendations.extend([
-                "Job matching with local employers based on skills",
-                "Career counseling sessions",
-                "Interview preparation workshops"
-            ])
+        if 'eligibility' in goal.lower():
+            plan['steps'] = [
+                'extract_financial_data',
+                'validate_income_information', 
+                'assess_family_situation',
+                'calculate_composite_score',
+                'apply_business_rules'
+            ]
+            plan['risk_factors'] = ['data_quality', 'calculation_complexity']
         
-        # Training recommendations
-        education_level = data.get('education_level', '')
-        if education_level in ['Secondary', 'Diploma']:
-            recommendations.extend([
-                "Vocational training programs",
-                "Digital skills certification",
-                "Industry-specific skill development"
-            ])
+        elif 'decision' in goal.lower():
+            plan['steps'] = [
+                'review_eligibility_score',
+                'check_policy_compliance',
+                'assess_risk_factors',
+                'generate_recommendation',
+                'apply_confidence_threshold'
+            ]
+            plan['risk_factors'] = ['policy_interpretation', 'edge_cases']
         
-        # Financial enablement
-        if score >= 0.6:
-            recommendations.extend([
-                "Micro-entrepreneurship support",
-                "Small business grants",
-                "Financial literacy workshops"
-            ])
+        return plan
+    
+    @staticmethod
+    def solve(plan: Dict, state: AgentState) -> Dict:
+        """Execute the plan and return results"""
+        results = {
+            'plan_executed': plan['goal'],
+            'steps_completed': [],
+            'results': {},
+            'issues_encountered': []
+        }
         
-        return recommendations
+        for step in plan['steps']:
+            try:
+                # Simulate step execution
+                step_result = f"Executed {step}"
+                results['steps_completed'].append(step)
+                results['results'][step] = step_result
+            except Exception as e:
+                results['issues_encountered'].append(f"{step}: {str(e)}")
+        
+        return results
+
+class AgentRegistry:
+    """Registry for managing all agents"""
+    
+    _instance = None
+    _agents = {}
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(AgentRegistry, cls).__new__(cls)
+        return cls._instance
+    
+    def register_agent(self, name: str, agent_class: type):
+        """Register an agent class"""
+        self._agents[name] = agent_class
+        logger.info(f"Registered agent: {name}")
+    
+    def get_agent(self, name: str):
+        """Get an agent instance by name"""
+        if name not in self._agents:
+            raise ValueError(f"Agent not found: {name}")
+        return self._agents[name]()
+    
+    def list_agents(self) -> List[str]:
+        """List all registered agents"""
+        return list(self._agents.keys())
+
+# Global agent registry
+agent_registry = AgentRegistry()

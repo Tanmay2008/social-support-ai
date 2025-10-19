@@ -1,4 +1,4 @@
-# 8_infrastructure/init-db.sql
+# infrastructure/init-db.sql
 -- Initialize Social Support Database
 CREATE DATABASE IF NOT EXISTS social_support;
 CREATE DATABASE IF NOT EXISTS langfuse;

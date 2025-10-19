@@ -1,4 +1,4 @@
-# 8_infrastructure/docker-compose.yml
+# infrastructure/docker-compose.yml
 version: '3.8'
 
 services:

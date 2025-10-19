@@ -1,4 +1,4 @@
-# 1_data_pipeline/multimodal_processor.py
+# data_pipeline/multimodal_processor.py
 import pandas as pd
 import numpy as np
 from PIL import Image

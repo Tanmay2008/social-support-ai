@@ -1,4 +1,4 @@
-# 7_observability/langfuse_config.py
+# observability/langfuse_config.py
 import langfuse
 from langfuse.decorators import observe, langfuse_context
 from langfuse.model import CreateTrace, CreateGeneration, CreateSpan, CreateEvent

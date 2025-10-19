@@ -1,4 +1,4 @@
-# 6_frontend/streamlit_app.py
+# frontend/streamlit_app.py
 import streamlit as st
 import requests
 import json

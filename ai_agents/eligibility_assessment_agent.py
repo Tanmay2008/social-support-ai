@@ -1,4 +1,4 @@
-# 2_ai_agents/eligibility_assessment_agent.py
+# ai_agents/eligibility_assessment_agent.py
 from .agent_framework import BaseAgent, AgentState, PlanAndSolveFramework
 from typing import Dict, List, Any
 import numpy as np

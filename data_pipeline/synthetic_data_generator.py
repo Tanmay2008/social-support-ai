@@ -1,4 +1,4 @@
-# 1_data_pipeline/synthetic_data_generator.py
+# data_pipeline/synthetic_data_generator.py
 import pandas as pd
 import numpy as np
 from faker import Faker

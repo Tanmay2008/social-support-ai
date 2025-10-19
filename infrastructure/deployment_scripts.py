@@ -1,4 +1,4 @@
-# 8_infrastructure/deployment_scripts.py
+# infrastructure/deployment_scripts.py
 import subprocess
 import os
 import sys
