@@ -1,0 +1,94 @@
+# requirements.txt
+# AI Case Study: Social Support Application Workflow Automation
+# Complete dependency list for the prototype solution
+
+## Core Python
+typing-extensions>=4.0.0
+numexpr>=2.8.4
+bottleneck>=1.3.6
+
+## Data Processing & Analysis
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+xlrd>=2.0.0
+
+## Machine Learning & AI
+scikit-learn>=1.3.0
+xgboost>=1.7.0
+joblib>=1.2.0
+
+## Computer Vision & OCR
+pillow>=10.0.0
+pytesseract>=0.3.10
+easyocr>=1.6.0
+pymupdf>=1.22.0
+opencv-python>=4.7.0
+
+## Large Language Models & AI Agents
+ollama>=0.1.0
+langgraph>=0.0.40
+langchain>=0.0.340
+langchain-community>=0.0.10
+agno>=0.1.0
+crewai>=0.1.0
+
+## Vector Databases & Data Storage
+qdrant-client>=1.6.0
+pymongo>=4.5.0
+psycopg2-binary>=2.9.0
+redis>=5.0.0
+neo4j>=5.12.0
+python-arango>=7.0.0
+
+## API & Web Framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+## Frontend
+streamlit>=1.28.0
+plotly>=5.17.0
+
+## AI Observability & Monitoring
+langfuse>=2.0.0
+prometheus-client>=0.17.0
+
+## Utilities & Development
+python-dotenv>=1.0.0
+python-dateutil>=2.8.0
+faker>=19.0.0
+requests>=2.31.0
+aiofiles>=23.0.0
+asyncio>=3.9.0
+tenacity>=8.2.0
+tqdm>=4.65.0
+
+## Security
+python-jose>=3.3.0
+passlib>=1.7.4
+bcrypt>=4.0.0
+cryptography>=41.0.0
+
+## Testing & Quality
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+pylint>=2.17.0
+
+## Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.2.0
+pdoc>=13.0.0
+
+## Containerization & Deployment
+docker>=6.1.0
+gunicorn>=21.2.0
+
+## Environment Specific
+# For Windows compatibility (if needed)
+pywin32>=306; sys_platform == 'win32'
